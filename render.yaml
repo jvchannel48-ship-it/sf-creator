@@ -1,7 +1,5 @@
-services:
-  - type: web
-    name: sf-creator
-    runtime: static
+staticSites:
+  - name: sf-creator
     repo: https://github.com/jvchannel48-ship-it/sf-creator
     branch: main
     buildCommand: echo
