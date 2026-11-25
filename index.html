@@ -1,30 +1,37 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SF2 Creator</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Real SF2 Creator</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#10131a;color:#f4f6fa;font-family:system-ui,Arial,sans-serif}main{max-width:760px;margin:auto;padding:24px}.panel{background:#1b202b;border:1px solid #30394a;border-radius:18px;padding:22px;margin:16px 0}h1{margin:8px 0;font-size:28px}p{color:#b8c2d2}label{display:block;margin:14px 0 6px}input,button{width:100%;padding:14px;border-radius:12px;border:1px solid #394456;background:#121721;color:white}button{background:#5b7cff;border:0;font-weight:700;margin-top:14px;font-size:16px}button:disabled{opacity:.5}small{color:#99a6ba}.status{margin-top:14px;white-space:pre-wrap}.meter{height:4px;background:#30394a;margin-top:10px;border-radius:8px}
-</style></head><body><main><h1>🎹 SF2 Creator</h1><p>Convert a mono PCM WAV sample into a basic SoundFont (SF2) in your browser.</p>
-<div class="panel"><label for="wav">Select WAV file</label><input id="wav" type="file" accept=".wav,audio/wav"><label for="name">SoundFont / Instrument name</label><input id="name" value="My SoundFont" maxlength="20"><button id="go">CREATE SF2</button><div class="status" id="status">Choose a WAV sample to begin.</div><small>Supported: uncompressed mono PCM, 8-bit or 16-bit WAV. The sample will be mapped across the keyboard.</small></div>
+*{box-sizing:border-box}body{margin:0;background:#10131a;color:#f4f6fa;font-family:system-ui,Arial,sans-serif}main{max-width:760px;margin:auto;padding:20px}h1{font-size:28px}p{color:#b8c2d2}.panel{background:#1b202b;border:1px solid #30394a;border-radius:18px;padding:20px;margin:16px 0}label{display:block;margin:14px 0 6px}input,button{width:100%;padding:14px;border-radius:12px;border:1px solid #394456;background:#121721;color:white}button{background:#5b7cff;border:0;font-weight:700;margin-top:14px;font-size:16px}button:disabled{opacity:.5}small{color:#99a6ba}.status{margin-top:14px;white-space:pre-wrap;line-height:1.5}.meter{height:4px;background:#30394a;margin-top:10px;border-radius:8px}audio{width:100%;margin-top:12px}
+</style></head><body><main><h1>🎹 Genuine SF2 SoundFont Creator</h1><p>Create a standard RIFF SoundFont 2 bank using your own mono PCM WAV sample. Export is generated locally in your browser—no upload to a server.</p>
+<div class="panel"><label for="wav">Choose WAV sample</label><input id="wav" type="file" accept=".wav,audio/wav"><label for="name">SoundFont / instrument name</label><input id="name" value="My SoundFont" maxlength="19"><label for="root">Sample's original pitch (MIDI note)</label><input id="root" type="number" min="0" max="127" value="60"><button id="preview" type="button">▶ Preview WAV</button><audio id="audio" controls hidden></audio><button id="go">CREATE SF2</button><div class="status" id="status">Select an uncompressed mono PCM WAV sample to start.</div><small>Supported: mono PCM WAV, 8-bit or 16-bit. Sample is mapped across MIDI notes 0–127. For best results, use a clean sample with a clearly defined root pitch.</small></div>
 </main><script>
-const file=document.getElementById('wav'),btn=document.getElementById('go'),status=document.getElementById('status');
-function chunk(id,data){const b=new Uint8Array(8+data.length),v=new DataView(b.buffer);for(let i=0;i<4;i++)b[i]=id.charCodeAt(i);v.setUint32(4,data.length,true);b.set(data,8);return b}
+const file=document.getElementById('wav'),btn=document.getElementById('go'),status=document.getElementById('status'),audio=document.getElementById('audio');
+function ascii(s){return new TextEncoder().encode(s)}
 function concat(parts){let n=parts.reduce((s,p)=>s+p.length,0),o=new Uint8Array(n),i=0;for(const p of parts){o.set(p,i);i+=p.length}return o}
-function list(type,...parts){return concat([new TextEncoder().encode(type),...parts])}
-function str20(s){let a=new Uint8Array(20);let x=new TextEncoder().encode(s.slice(0,19));a.set(x);return a}
-function u16(...v){let a=new Uint8Array(v.length*2),d=new DataView(a.buffer);v.forEach((x,i)=>d.setUint16(i*2,x,true));return a}
-function u32(...v){let a=new Uint8Array(v.length*4),d=new DataView(a.buffer);v.forEach((x,i)=>d.setUint32(i*4,x,true));return a}
-function sHdr(name,start,end,rate){return concat([str20(name),u32(start,end,start,start),u32(rate),new Uint8Array([60,0]),u16(0,1)])}
-function makeSF2(samples,rate,name){
-const guards=new Uint8Array(46),pcm=concat([samples,guards]);
-const info=list('INFO',chunk('ifil',u16(2,1)),chunk('isng',new TextEncoder().encode('EMU8000\0')),chunk('INAM',new TextEncoder().encode(name+'\0')));
-const sdta=list('sdta',chunk('smpl',pcm));
-const phdr=concat([str20(name),u16(0,0,0),new Uint8Array([0,0]),u16(0),str20('EOP'),u16(0,0,1),new Uint8Array([0,0]),u16(0)]);
-const pbag=concat([u16(0,0),u16(1,0)]),pmod=new Uint8Array(10),pgen=u16(41,0);
-const inst=concat([str20(name),u16(0),str20('EOI'),u16(1)]);
-const ibag=concat([u16(0,0),u16(3,0)]),imod=new Uint8Array(10),igen=u16(43,0x7f00,53,0,58,60);
-const shdr=concat([sHdr('Sample',0,samples.length/2,rate),str20('EOS'),u32(samples.length/2,samples.length/2,samples.length/2,samples.length/2),u32(rate),new Uint8Array([60,0]),u16(0,0)]);
-const pdta=list('pdta',chunk('phdr',phdr),chunk('pbag',pbag),chunk('pmod',pmod),chunk('pgen',pgen),chunk('inst',inst),chunk('ibag',ibag),chunk('imod',imod),chunk('igen',igen),chunk('shdr',shdr));
-const body=list('sfbk',chunk('LIST',info),chunk('LIST',sdta),chunk('LIST',pdta));
-return concat([new TextEncoder().encode('RIFF'),u32(body.length),body]);
+function chunk(id,data){const b=new Uint8Array(8+data.length),v=new DataView(b.buffer);b.set(ascii(id),0);v.setUint32(4,data.length,true);b.set(data,8);return b}
+function list(type,...parts){return chunk('LIST',concat([ascii(type),...parts]))}
+function u16(...vals){const b=new Uint8Array(vals.length*2),d=new DataView(b.buffer);vals.forEach((x,i)=>d.setUint16(i*2,x,true));return b}
+function u32(...vals){const b=new Uint8Array(vals.length*4),d=new DataView(b.buffer);vals.forEach((x,i)=>d.setUint32(i*4,x,true));return b}
+function s16(...vals){const b=new Uint8Array(vals.length*2),d=new DataView(b.buffer);vals.forEach((x,i)=>d.setInt16(i*2,x,true));return b}
+function fixed(s,n=20){const b=new Uint8Array(n),x=ascii(s);b.set(x.slice(0,n-1));return b}
+function gen(op,amount){return u16(op,amount)}
+function makeSF2(pcm,rate,root,name){
+ const sampleCount=pcm.length/2,guard=new Uint8Array(46),sampleData=concat([pcm,guard]);
+ const info=list('INFO',chunk('ifil',u16(2,1)),chunk('isng',ascii('EMU8000\0')),chunk('INAM',ascii(name+'\0')),chunk('IENG',ascii('SF2 Creator\0')),chunk('IPRD',ascii('Browser Sample Converter\0')),chunk('ICRD',ascii(new Date().toISOString().slice(0,10)+'\0')));
+ const sdta=list('sdta',chunk('smpl',sampleData));
+ // Preset: one preset zone containing instrument 0. Instrument: one sample zone spanning the full keyboard.
+ const phdr=concat([fixed(name),u16(0,0,0),u32(0,0,0),fixed('EOP'),u16(0,0,1),u32(0,0,0)]);
+ const pbag=concat([u16(0,0),u16(1,0)]),pmod=new Uint8Array(10),pgen=concat([gen(41,0),gen(0,0)]);
+ const inst=concat([fixed(name),u16(0),fixed('EOI'),u16(1)]);
+ const ibag=concat([u16(0,0),u16(4,0)]),imod=new Uint8Array(10);
+ const keyRange=new Uint8Array([0,127]);
+ const igen=concat([gen(43,0x7f00),gen(53,0),gen(54,0),gen(58,root),gen(0,0)]);
+ const shdr=concat([fixed('Sample'),u32(0,sampleCount,sampleCount,sampleCount),u32(rate),new Uint8Array([root,0]),u16(0,0),fixed('EOS'),u32(sampleCount,sampleCount,sampleCount,sampleCount),u32(rate),new Uint8Array([root,0]),u16(0,0)]);
+ const pdta=list('pdta',chunk('phdr',phdr),chunk('pbag',pbag),chunk('pmod',pmod),chunk('pgen',pgen),chunk('inst',inst),chunk('ibag',ibag),chunk('imod',imod),chunk('igen',igen),chunk('shdr',shdr));
+ const body=concat([ascii('sfbk'),info,sdta,pdta]);return concat([ascii('RIFF'),u32(body.length),body]);
 }
-btn.onclick=async()=>{try{const f=file.files[0];if(!f)throw Error('Please select a WAV file first.');status.textContent='Reading and converting…';const buf=await f.arrayBuffer();const a=new DataView(buf);if(buf.byteLength<44||String.fromCharCode(...new Uint8Array(buf,0,4))!=='RIFF'||String.fromCharCode(...new Uint8Array(buf,8,4))!=='WAVE')throw Error('Invalid WAV file.');let fmt=null,data=null,pos=12;while(pos+8<=buf.byteLength){let id=String.fromCharCode(...new Uint8Array(buf,pos,4)),size=a.getUint32(pos+4,true);if(pos+8+size>buf.byteLength)throw Error('WAV chunk is damaged.');if(id==='fmt ')fmt={code:a.getUint16(pos+8,true),channels:a.getUint16(pos+10,true),rate:a.getUint32(pos+12,true),bits:a.getUint16(pos+22,true)};if(id==='data')data=new Uint8Array(buf,pos+8,size);pos+=8+size+(size%2)}if(!fmt||!data||fmt.code!==1||fmt.channels!==1||![8,16].includes(fmt.bits))throw Error('Only uncompressed mono PCM WAV (8 or 16 bit) supported.');let pcm;if(fmt.bits===16){pcm=new Uint8Array(data.length);pcm.set(data);if(pcm.length%2)throw Error('Odd 16-bit sample data size.')}else{pcm=new Uint8Array(data.length*2);const dv=new DataView(pcm.buffer);for(let i=0;i<data.length;i++)dv.setInt16(i*2,(data[i]-128)<<8,true)}const name=(document.getElementById('name').value||'My SoundFont').slice(0,19);const sf=makeSF2(pcm,fmt.rate,name);const blob=new Blob([sf],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name.replace(/[^a-z0-9_-]/gi,'_')+'.sf2';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);status.textContent='Conversion complete. Your SF2 download should start now.';}catch(e){status.textContent='Error: '+e.message}}
+async function parseWav(f){const buf=await f.arrayBuffer(),v=new DataView(buf);if(buf.byteLength<44||String.fromCharCode(...new Uint8Array(buf,0,4))!=='RIFF'||String.fromCharCode(...new Uint8Array(buf,8,4))!=='WAVE')throw Error('Not a valid WAV file.');let fmt=null,data=null,pos=12;while(pos+8<=buf.byteLength){const id=String.fromCharCode(...new Uint8Array(buf,pos,4)),size=v.getUint32(pos+4,true);if(pos+8+size>buf.byteLength)throw Error('WAV chunk is truncated.');if(id==='fmt '){fmt={code:v.getUint16(pos+8,true),channels:v.getUint16(pos+10,true),rate:v.getUint32(pos+12,true),bits:v.getUint16(pos+22,true)}}if(id==='data')data=new Uint8Array(buf,pos+8,size);pos+=8+size+(size%2)}if(!fmt||!data||fmt.code!==1||fmt.channels!==1||![8,16].includes(fmt.bits))throw Error('Supported format is mono, uncompressed PCM WAV (8-bit or 16-bit).');let pcm;if(fmt.bits===16){if(data.length%2)throw Error('Invalid 16-bit PCM sample length.');pcm=new Uint8Array(data)}else{pcm=new Uint8Array(data.length*2);const d=new DataView(pcm.buffer);for(let i=0;i<data.length;i++)d.setInt16(i*2,(data[i]-128)<<8,true)}return {pcm,rate:fmt.rate}}
+file.addEventListener('change',()=>{audio.hidden=true;audio.pause();if(file.files[0]){audio.src=URL.createObjectURL(file.files[0]);audio.hidden=false;status.textContent='WAV selected: '+file.files[0].name}});
+document.getElementById('preview').onclick=()=>{if(!file.files[0]){status.textContent='Choose a WAV file first.';return}audio.hidden=false;audio.play().catch(()=>status.textContent='Tap the audio player to preview.')};
+btn.onclick=async()=>{try{const f=file.files[0];if(!f)throw Error('Please select a WAV file first.');btn.disabled=true;status.textContent='Reading WAV and building SF2 bank…';const {pcm,rate}=await parseWav(f),root=Math.max(0,Math.min(127,Number(document.getElementById('root').value)||60)),name=(document.getElementById('name').value||'My SoundFont').slice(0,19);const sf=makeSF2(pcm,rate,root,name);const blob=new Blob([sf],{type:'audio/sf2'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name.replace(/[^a-z0-9_-]/gi,'_')+'.sf2';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);status.textContent='SF2 export finished. Download started.\nFile size: '+(sf.length/1024/1024).toFixed(2)+' MB\nThis is a generated SoundFont 2 structure; test it in your target MIDI player for compatibility.';}catch(e){status.textContent='Error: '+e.message}finally{btn.disabled=false}};
 </script></body></html>
