@@ -1,0 +1,7 @@
+services:
+  - type: static
+    name: sf-creator
+    repo: https://github.com/jvchannel48-ship-it/sf-creator
+    branch: main
+    buildCommand: echo "Publishing browser-based SF2 Creator"
+    publishPath: .
